@@ -29,7 +29,7 @@ __all__ = ['geo_bin_from_array',
 
 import logging
 from textwrap import wrap
-
+import matplotlib
 from scipy.interpolate import griddata
 import numpy as np
 import matplotlib.pyplot as plt
@@ -42,6 +42,7 @@ from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
 from rasterio.crs import CRS
 import requests
 
+from climada.util.constants import CMAP_CONTINUOUS1, CMAP_CAT, CMAP_DIVERGING
 from climada.util.files_handler import to_list
 import climada.util.coordinates as u_coord
 
@@ -56,6 +57,9 @@ BUFFER = 1.0
 MAX_BINS = 2000
 """Maximum number of bins in geo_bin_from_array"""
 
+matplotlib.rc('font', size=14)
+matplotlib.rc('axes', titlesize=15)
+"""Settings for matplotlib"""
 
 def geo_bin_from_array(array_sub, geo_coord, var_name, title,
                        pop_name=True, buffer=BUFFER, extend='neither',
@@ -77,8 +81,9 @@ def geo_bin_from_array(array_sub, geo_coord, var_name, title,
     title : str or list(str)
         subplot title. If one provided, the same is used for all subplots.
         Otherwise provide as many as subplots in array_sub.
-    pop_name : bool, optional
-        add names of the populated places, by default True
+    pop_name : bool or str, optional
+        add names of the populated places, by default True. If set to 'markers' only the points
+        will be shown, without a description.
     buffer : float, optional
         border to add to coordinates, by default BUFFER
     extend : str, optional
@@ -131,8 +136,9 @@ def geo_scatter_from_array(array_sub, geo_coord, var_name, title,
     title : str or list(str)
         subplot title. If one provided, the same is used for all subplots.
         Otherwise provide as many as subplots in array_sub.
-    pop_name : bool, optional
-        add names of the populated places, by default False
+    pop_name : bool or str, optional
+        add names of the populated places, by default True. If set to 'markers' only the points
+        will be shown, without a description.
     buffer : float, optional
         border to add to coordinates, by default BUFFER
     extend : str, optional
@@ -180,7 +186,7 @@ def _plot_scattered_data(method, array_sub, geo_coord, var_name, title,
     list_coord = to_list(num_im, geo_coord, 'geo_coord')
 
     if 'cmap' not in kwargs:
-        kwargs['cmap'] = 'Wistia'
+        kwargs['cmap'] = CMAP_CONTINUOUS1
 
     if axes is None:
         proj_plot = proj
@@ -212,7 +218,7 @@ def _plot_scattered_data(method, array_sub, geo_coord, var_name, title,
         if shapes:
             add_shapes(axis)
         if pop_name:
-            add_populated_places(axis, extent, proj)
+            add_populated_places(axis, extent, proj, pop_name)
 
         if method == "hexbin":
             if 'gridsize' not in kwargs:
@@ -243,7 +249,7 @@ def geo_im_from_array(array_sub, coord, var_name, title,
         Each array (in a row or in  the list) are values at each point in corresponding
         geo_coord that are ploted in one subplot.
     coord : 2d np.array
-        (lat, lon) for each point in a row. The same grid is used for all subplots.
+        (lat, lon) for each point in a row. The same grid is used for all subploplots.
     var_name : str or list(str)
         label to be shown in the colorbar. If one provided, the same is used for all subplots.
         Otherwise provide as many as subplots in array_sub.
@@ -274,6 +280,8 @@ def geo_im_from_array(array_sub, coord, var_name, title,
     num_im, list_arr = _get_collection_arrays(array_sub)
     list_tit = to_list(num_im, title, 'title')
     list_name = to_list(num_im, var_name, 'var_name')
+    list_coord = to_list(num_im, coord, 'geo_coord')
+
 
     is_reg, height, width = u_coord.grid_is_regular(coord)
     extent = _get_borders(coord, proj_limits=(-360, 360, -90, 90))
@@ -286,10 +294,18 @@ def geo_im_from_array(array_sub, coord, var_name, title,
     if 'vmax' not in kwargs:
         kwargs['vmax'] = np.nanmax(array_sub)
     if axes is None:
-        _, axes = make_map(num_im, proj=proj, figsize=figsize)
+        if isinstance(proj, ccrs.PlateCarree):
+            # use different projections for plot and data to shift the central lon in the plot
+            xmin, xmax = u_coord.lon_bounds(np.concatenate([c[:, 1] for c in list_coord]))
+            proj_plot = ccrs.PlateCarree(central_longitude=0.5 * (xmin + xmax))
+        _, axes = make_map(num_im, proj=proj_plot, figsize=figsize)
+
     axes_iter = axes
     if not isinstance(axes, np.ndarray):
         axes_iter = np.array([[axes]])
+
+    if 'cmap' not in kwargs:
+        kwargs['cmap'] = CMAP_DIVERGING
 
     # Generate each subplot
     for array_im, axis, tit, name in zip(list_arr, axes_iter.flatten(), list_tit, list_name):
@@ -392,7 +408,7 @@ def geo_scatter_categorical(array_sub, geo_coord, var_name, title,
             cmap_name = 'defined by the user'
     else:
         # default qualitative colormap
-        cmap_name = 'Dark2'
+        cmap_name = CMAP_CAT
         cmap = mpl.colors.ListedColormap(
             plt.get_cmap(cmap_name).colors[:array_sub_n]
             )
@@ -495,7 +511,7 @@ def add_shapes(axis):
         axis.add_geometries([geometry], crs=ccrs.PlateCarree(), facecolor='none',
                             edgecolor='dimgray')
 
-def add_populated_places(axis, extent, proj=ccrs.PlateCarree()):
+def add_populated_places(axis, extent, proj=ccrs.PlateCarree(), pop_name=True):
     """
     Add city names.
 
@@ -524,11 +540,12 @@ def add_populated_places(axis, extent, proj=ccrs.PlateCarree()):
                 # https://github.com/SciTools/cartopy/issues/1282
                 # As a workaround, we encode and decode again:
                 place_name = rec.attributes['name'].encode("latin-1").decode("utf-8")
-                axis.plot(point.x, point.y, color='navy', marker='o', markersize=7,
+                axis.plot(point.x, point.y, color='navy', marker='o',
                           transform=ccrs.PlateCarree(), markerfacecolor='None')
-                axis.text(point.x, point.y, place_name,
-                          horizontalalignment='right', verticalalignment='bottom',
-                          transform=ccrs.PlateCarree(), fontsize=14, color='navy')
+                if pop_name != 'markers':
+                    axis.text(point.x, point.y, place_name,
+                              horizontalalignment='right', verticalalignment='bottom',
+                              transform=ccrs.PlateCarree(), color='navy')
 
 def add_cntry_names(axis, extent, proj=ccrs.PlateCarree()):
     """

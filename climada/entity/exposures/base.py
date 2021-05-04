@@ -36,7 +36,7 @@ import cartopy.crs as ccrs
 
 from climada.entity.tag import Tag
 import climada.util.hdf5_handler as u_hdf5
-from climada.util.constants import ONE_LAT_KM, DEF_CRS
+from climada.util.constants import ONE_LAT_KM, DEF_CRS, CMAP_DIVERGING
 import climada.util.coordinates as u_coord
 import climada.util.plot as u_plot
 
@@ -70,8 +70,8 @@ DEF_VAR_MAT = {'sup_field_name': 'entity',
                             'uni': 'Value_unit',
                             'ass': 'centroid_index',
                             'ref': 'reference_year'
-                           }
-              }
+                            }
+               }
 """MATLAB variable names"""
 
 class Exposures():
@@ -426,7 +426,9 @@ class Exposures():
             mask (np.array, optional): mask to apply to eai_exp plotted.
             ignore_zero (bool, optional): flag to indicate if zero and negative
                 values are ignored in plot. Default: False
-            pop_name (bool, optional): add names of the populated places
+            pop_name : bool or str, optional
+                add names of the populated places, by default True. If set to 'markers' only the points
+                will be shown without a description.
             buffer (float, optional): border to add to coordinates. Default: 0.0.
             extend (str, optional): extend border colorbar with arrows.
                 [ 'neither' | 'both' | 'min' | 'max' ]
@@ -465,7 +467,9 @@ class Exposures():
             mask (np.array, optional): mask to apply to eai_exp plotted.
             ignore_zero (bool, optional): flag to indicate if zero and negative
                 values are ignored in plot. Default: False
-            pop_name (bool, optional): add names of the populated places
+            pop_name : bool or str, optional
+                add names of the populated places, by default True. If set to 'markers' only the points
+                will be shown without a description.
             buffer (float, optional): border to add to coordinates. Default: 0.0.
             extend (str, optional): extend border colorbar with arrows.
                 [ 'neither' | 'both' | 'min' | 'max' ]
@@ -497,7 +501,7 @@ class Exposures():
     def plot_raster(self, res=None, raster_res=None, save_tiff=None,
                     raster_f=lambda x: np.log10((np.fmax(x + 1, 1))),
                     label='value (log10)', scheduler=None, axis=None,
-                    figsize=(9, 13), **kwargs):
+                    figsize=(9, 13), fill=True, **kwargs):
         """Generate raster from points geometry and plot it using log10 scale:
         np.log10((np.fmax(raster+1, 1))).
 
@@ -514,6 +518,8 @@ class Exposures():
                 “synchronous” or “processes”
             axis (matplotlib.axes._subplots.AxesSubplot, optional): axis to use
             figsize (tuple, optional): figure size for plt.subplots
+            fill(bool, optional): If false, the areas with no data will be plotted
+                in white.
             kwargs (optional): arguments for imshow matplotlib function
 
         Returns:
@@ -556,6 +562,11 @@ class Exposures():
                                                         pad=0.1, axes_class=plt.Axes)
         axis.set_extent((xmin, xmax, ymin, ymax), crs=proj_data)
         u_plot.add_shapes(axis)
+        if not fill:
+            raster = np.where(raster == 0, np.nan, raster)
+            raster_f = lambda x: np.log10((np.maximum(x + 1, 1)))
+        if 'cmap' not in kwargs:
+            kwargs['cmap'] = CMAP_DIVERGING
         imag = axis.imshow(raster_f(raster), **kwargs, origin='upper',
                            extent=(xmin, xmax, ymin, ymax), transform=proj_data)
         plt.colorbar(imag, cax=cbar_ax, label=label)
@@ -573,7 +584,9 @@ class Exposures():
                 size of the exposures, only the selected indexes will be plot.
             ignore_zero (bool, optional): flag to indicate if zero and negative
                 values are ignored in plot. Default: False
-            pop_name (bool, optional): add names of the populated places
+            pop_name : bool or str, optional
+                add names of the populated places, by default True. If set to 'markers' only the points
+                will be shown without a description.
             buffer (float, optional): border to add to coordinates. Default: 0.0.
             extend (str, optional): extend border colorbar with arrows.
                 [ 'neither' | 'both' | 'min' | 'max' ]
@@ -854,7 +867,7 @@ def _read_mat_optional(exposures, data, var_names):
 
     try:
         exposures['category_id'] = \
-        np.squeeze(data[var_names['var_name']['cat']]).astype(int, copy=False)
+            np.squeeze(data[var_names['var_name']['cat']]).astype(int, copy=False)
     except KeyError:
         pass
 

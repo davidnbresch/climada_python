@@ -46,7 +46,8 @@ __all__ = ['SYSTEM_DIR',
 # without importing numpy ahead of fiona the debugger may run into an error
 import numpy
 from fiona.crs import from_epsg
-
+import matplotlib as mpl
+import numpy as np
 from .config import CONFIG
 
 SYSTEM_DIR = CONFIG.local_data.system.dir(create=False)
@@ -204,3 +205,13 @@ DEF_CRS = f'EPSG:{DEF_EPSG}'
 
 DEF_CRS_FIONA = from_epsg(DEF_EPSG)
 """Default coordinate reference system WGS 84, dict, for fiona interface"""
+
+cmap_list = np.array([np.array([247, 244, 249]), np.array([201, 148, 199]), np.array([231, 41, 138]),
+                      np.array([152, 0, 67]), np.array([0, 0, 0])])
+CMAP_CONTINUOUS1 = mpl.colors.LinearSegmentedColormap.from_list('exposures_colormap', cmap_list / 256, N=256)
+
+CMAP_CONTINUOUS2 = 'YlOrRd'
+
+CMAP_DIVERGING = 'viridis'
+
+CMAP_CAT = 'Dark2'
