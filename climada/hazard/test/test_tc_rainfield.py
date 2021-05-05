@@ -91,7 +91,7 @@ class TestReader(unittest.TestCase):
         self.assertEqual(tc_haz.event_id[0], 1)
         self.assertEqual(tc_haz.event_name, ['1951239N12334'])
         self.assertEqual(tc_haz.category, tc_track.data[0].category)
-        self.assertTrue(np.isnan(tc_haz.basin[0]))
+        self.assertEqual(tc_haz.basin[0], "NA")
         self.assertIsInstance(tc_haz.basin, list)
         self.assertIsInstance(tc_haz.category, np.ndarray)
         self.assertTrue(np.array_equal(tc_haz.frequency, np.array([1])))

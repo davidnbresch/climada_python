@@ -127,7 +127,7 @@ class TCRain(Hazard):
             track.time.dt.day[0]).toordinal()])
         new_haz.orig = np.array([track.orig_event_flag])
         new_haz.category = np.array([track.category])
-        new_haz.basin = [track.basin]
+        new_haz.basin = [str(track.basin.values[0])]
         return new_haz
 
 def rainfield_from_track(track, centroids, dist_degree=3, intensity=0.1):

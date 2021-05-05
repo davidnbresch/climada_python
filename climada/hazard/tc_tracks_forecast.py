@@ -313,8 +313,7 @@ class TCForecast(TCTracks):
         track['time_step'] = track.ts_int - \
             track.ts_int.shift({'time': 1}, fill_value=0)
 
-        # TODO use drop_vars after upgrading xarray
-        track = track.drop('ts_int')
+        track = track.drop_vars(['ts_int'])
 
         track['radius_max_wind'] = (('time'), np.full_like(
             track.time, np.nan, dtype=float)
@@ -324,7 +323,7 @@ class TCForecast(TCTracks):
         )
 
         # according to specs always num-num-letter
-        track.attrs['basin'] = BASINS[sid[2]]
+        track['basin'] = ('time', np.full_like(track.time, BASINS[sid[2]], dtype=object))
 
         if sid[2] == 'X':
             LOGGER.info(

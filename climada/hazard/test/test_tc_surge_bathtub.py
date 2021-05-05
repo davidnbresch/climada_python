@@ -127,6 +127,7 @@ class TestTCSurgeBathtub(unittest.TestCase):
             'central_pressure': ('time', [894., 901, 906, 909, 913, 918, 924, 925]),
             'environmental_pressure': ('time', np.full((8,), 1004.0, dtype=np.float64)),
             'time_step': ('time', np.full((8,), 3.0, dtype=np.float64)),
+            'basin': ('time', np.full((8,), "SP")),
         }, coords={
             'time': np.arange('2010-02-05T09:00', '2010-02-06T09:00',
                               np.timedelta64(3, 'h'), dtype='datetime64[h]'),
@@ -141,7 +142,6 @@ class TestTCSurgeBathtub(unittest.TestCase):
             'sid': '2010029S12177_test',
             'orig_event_flag': True,
             'data_provider': 'unit_test',
-            'basin': 'SP',
             'id_no': 0,
             'category': 4,
         })

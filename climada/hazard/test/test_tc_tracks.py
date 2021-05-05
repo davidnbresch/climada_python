@@ -115,7 +115,7 @@ class TestIbtracs(unittest.TestCase):
         self.assertFalse(np.isnan(track_ds.lat.values).any())
         self.assertFalse(np.isnan(track_ds.lon.values).any())
 
-        self.assertEqual(track_ds.basin, 'NA')
+        np.testing.assert_array_equal(track_ds.basin, 'NA')
         self.assertEqual(track_ds.max_sustained_wind_unit, 'kn')
         self.assertEqual(track_ds.central_pressure_unit, 'mb')
         self.assertEqual(track_ds.sid, '2017242N16333')
@@ -232,12 +232,12 @@ class TestIbtracs(unittest.TestCase):
         tc_track = tc.TCTracks()
         tc_track.read_ibtracs_netcdf(provider='usa', year_range=(1993, 1994),
                                      basin='EP', estimate_missing=False)
-        self.assertEqual(tc_track.size, 34)
+        self.assertEqual(tc_track.size, 33)
 
         tc_track = tc.TCTracks()
         tc_track.read_ibtracs_netcdf(provider='usa', year_range=(1993, 1994),
                                      basin='EP', estimate_missing=True)
-        self.assertEqual(tc_track.size, 52)
+        self.assertEqual(tc_track.size, 45)
 
     def test_ibtracs_correct_pass(self):
         """Check estimate_missing option"""
@@ -248,6 +248,35 @@ class TestIbtracs(unittest.TestCase):
         self.assertAlmostEqual(tc_try.data[0].central_pressure.values[5], 1008, places=0)
         self.assertAlmostEqual(tc_try.data[0].central_pressure.values[-1], 1012, places=0)
 
+    def test_read_with_basin(self):
+        """Filter TCs by (genesis) basin."""
+        # South Atlantic (not usually a TC location at all)
+        tc_track = tc.TCTracks()
+        tc_track.read_ibtracs_netcdf(basin="SA")
+        self.assertEqual(tc_track.size, 3)
+
+        # the basin is not necessarily the genesis basin
+        tc_track = tc.TCTracks()
+        tc_track.read_ibtracs_netcdf(year_range=(1995, 1995), basin="SP", estimate_missing=True)
+        self.assertEqual(tc_track.size, 6)
+        self.assertEqual(tc_track.data[0].basin[0], 'SP')
+        self.assertEqual(tc_track.data[5].basin[0], 'SI')
+
+        # genesis in NI
+        tc_track = tc.TCTracks()
+        tc_track.read_ibtracs_netcdf(
+            year_range=(1994, 1994), genesis_basin="NI", estimate_missing=True)
+        self.assertEqual(tc_track.size, 5)
+        for tr in tc_track.data:
+            np.testing.assert_array_equal(tr.basin[0], "NI")
+
+        # genesis in EP, but crosses WP at some point
+        tc_track = tc.TCTracks()
+        tc_track.read_ibtracs_netcdf(year_range=(2002, 2003), basin="WP", genesis_basin="EP")
+        self.assertEqual(tc_track.size, 3)
+        for tr in tc_track.data:
+            self.assertEqual(tr.basin[0], "EP")
+            self.assertIn("WP", tr.basin)
 
 class TestIO(unittest.TestCase):
     """Test reading of tracks from files of different formats"""
@@ -276,7 +305,7 @@ class TestIO(unittest.TestCase):
         self.assertEqual(tc_track.data[0].sid, '1951239N12334')
         self.assertEqual(tc_track.data[0].id_no, 1951239012334)
         self.assertEqual(tc_track.data[0].data_provider, 'hurdat_atl')
-        self.assertTrue(np.isnan(tc_track.data[0].basin))
+        np.testing.assert_array_equal(tc_track.data[0].basin, 'NA')
         self.assertEqual(tc_track.data[0].id_no, 1951239012334)
         self.assertEqual(tc_track.data[0].category, 1)
 
@@ -300,12 +329,12 @@ class TestIO(unittest.TestCase):
         self.assertEqual(tc_track.data[0].central_pressure_unit, 'mb')
         self.assertEqual(tc_track.data[0].sid, '1')
         self.assertEqual(tc_track.data[0].name, '1')
-        self.assertTrue(np.all([d.basin == 'N' for d in tc_track.data]))
+        self.assertTrue(np.all([np.all(d.basin == 'N') for d in tc_track.data]))
         self.assertEqual(tc_track.data[0].category, 3)
 
         tc_track.read_simulations_emanuel(TEST_TRACK_EMANUEL_CORR)
         self.assertEqual(len(tc_track.data), 2)
-        self.assertTrue(np.all([d.basin == 'S' for d in tc_track.data]))
+        self.assertTrue(np.all([np.all(d.basin == 'S') for d in tc_track.data]))
         self.assertEqual(tc_track.data[0].radius_max_wind[15], 102.49460043196545)
         self.assertEqual(tc_track.data[0].time.dt.month[343], 2)
         self.assertEqual(tc_track.data[0].time.dt.day[343], 28)
@@ -344,7 +373,7 @@ class TestIO(unittest.TestCase):
         self.assertEqual(tc_track_G.data[0].central_pressure_unit, 'mb')
         self.assertEqual(tc_track_G.data[0].sid, '0')
         self.assertEqual(tc_track_G.data[0].name, '0')
-        self.assertEqual(tc_track_G.data[0].basin, 'NI - North Indian')
+        np.testing.assert_array_equal(tc_track_G.data[0].basin, 'NI')
         self.assertEqual(tc_track_G.data[0].category, 0)
 
     def test_read_simulations_chaz(self):
@@ -366,7 +395,7 @@ class TestIO(unittest.TestCase):
         self.assertEqual(tc_track.data[0].central_pressure_unit, 'mb')
         self.assertEqual(tc_track.data[0].sid, 'chaz_test_tracks.nc-1-0')
         self.assertEqual(tc_track.data[0].name, 'chaz_test_tracks.nc-1-0')
-        self.assertTrue(np.all([d.basin == 'global' for d in tc_track.data]))
+        self.assertTrue(np.all([np.all(d.basin == 'GB') for d in tc_track.data]))
         self.assertEqual(tc_track.data[4].category, 0)
         self.assertEqual(tc_track.data[3].category, -1)
 
@@ -399,7 +428,7 @@ class TestIO(unittest.TestCase):
         self.assertEqual(tc_track.data[0].central_pressure_unit, 'mb')
         self.assertEqual(tc_track.data[0].sid, 'storm_test_tracks.txt-0-0')
         self.assertEqual(tc_track.data[0].name, 'storm_test_tracks.txt-0-0')
-        self.assertTrue(np.all([d.basin == 'EP' for d in tc_track.data]))
+        self.assertTrue(np.all([np.all(d.basin == 'EP') for d in tc_track.data]))
         self.assertEqual(tc_track.data[4].category, 0)
         self.assertEqual(tc_track.data[3].category, 1)
 
@@ -427,8 +456,7 @@ class TestIO(unittest.TestCase):
         tc_track.read_processed_ibtracs_csv(TEST_TRACK)
 
         gdf_line = tc_track.to_geodataframe()
-        self.assertIsInstance(gdf_line.basin[0], np.float64)
-        self.assertEqual(gdf_line.size, 10)
+        self.assertEqual(gdf_line.shape[0], 1)
         self.assertAlmostEqual(gdf_line.geometry[0].length, 54.0634224372971)
         self.assertIsInstance(gdf_line.bounds.minx, pd.core.series.Series)
 
@@ -520,7 +548,7 @@ class TestFuncs(unittest.TestCase):
         self.assertEqual(tc_track.data[0].orig_event_flag, 1)
         self.assertEqual(tc_track.data[0].name, '1951239N12334')
         self.assertEqual(tc_track.data[0].data_provider, 'hurdat_atl')
-        self.assertTrue(np.isnan(tc_track.data[0].basin))
+        np.testing.assert_array_equal(tc_track.data[0].basin, 'NA')
         self.assertEqual(tc_track.data[0].id_no, 1951239012334)
         self.assertEqual(tc_track.data[0].category, 1)
 
@@ -598,7 +626,7 @@ class TestFuncs(unittest.TestCase):
         self.assertEqual(tc_track.data[0].orig_event_flag, 1)
         self.assertEqual(tc_track.data[0].name, '1951239N12334')
         self.assertEqual(tc_track.data[0].data_provider, 'hurdat_atl')
-        self.assertTrue(np.isnan(tc_track.data[0].basin))
+        np.testing.assert_array_equal(tc_track.data[0].basin, 'NA')
         self.assertEqual(tc_track.data[0].id_no, 1951239012334)
         self.assertEqual(tc_track.data[0].category, 1)
 
@@ -650,7 +678,7 @@ class TestFuncs(unittest.TestCase):
         self.assertEqual(tc_track.data[0].orig_event_flag, 1)
         self.assertEqual(tc_track.data[0].name, '1951239N12334')
         self.assertEqual(tc_track.data[0].data_provider, 'hurdat_atl')
-        self.assertTrue(np.isnan(tc_track.data[0].basin))
+        np.testing.assert_array_equal(tc_track.data[0].basin, 'NA')
         self.assertEqual(tc_track.data[0].id_no, 1951239012334)
         self.assertEqual(tc_track.data[0].category, 1)
 
