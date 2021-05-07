@@ -485,24 +485,16 @@ class TropCyclone(Hazard):
                 sel_cat_chg = np.isin(tc_cc.category, cat_chg_list) & bas_sel
                 if sel_cat_chg.any():
                     freq_scaling = 1 + (chg['change'] - 1) * scaling_rcp_year
-                    sel_cat_all = (np.isin(tc_cc.category, chg['category'])
-                                   & bas_sel)
-                    sel_cat_larger = (np.isin(tc_cc.category, cat_larger_list)
-                                      & bas_sel)
-                    freq_scaling_cor = (
-                        (np.sum(self.frequency[sel_cat_all]) * freq_scaling
-                         - np.sum(tc_cc.frequency[sel_cat_larger]))
-                        / np.sum(self.frequency[sel_cat_chg])
-                    )
-                    tc_cc.frequency[sel_cat_chg] *= freq_scaling_cor
+                    tc_cc.frequency[sel_cat_chg] *= freq_scaling
                 cat_larger_list += cat_chg_list
 
         if (tc_cc.frequency < 0).any():
             raise ValueError("The application of the given climate scenario"
                              "resulted in at least one negative frequenciy."
-                             "This is likely due to the use of a"
+                             "This is likely due to the use of a "
                              "non-representative event set (too small, "
                              "incorrect reference period, ...)")
+
 
         return tc_cc
 

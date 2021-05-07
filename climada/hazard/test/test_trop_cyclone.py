@@ -370,16 +370,15 @@ class TestClimateSce(unittest.TestCase):
             np.allclose(tc.intensity[3, :].toarray() * 1.01875, tc_cc.intensity[3, :].toarray()))
 
         res_frequency = np.ones(4) * 0.5
-        res_frequency[3] = 0.5 * 1.01875
-        res_frequency[0] = 0.5 * 0.25
-        res_frequency[1] = 0.5 * 0.325
-        res_frequency[2] = 0.5 * 1.75
+        res_frequency[1] = 0.5 * (1 + (0.7 - 1) * scale)
+        res_frequency[2] = 0.5 * (1 + (2 - 1) * scale)
+        res_frequency[3] = 0.5 * (1 + (1.025 - 1) * scale)
         self.assertTrue(np.allclose(tc_cc.frequency, res_frequency))
 
     def test_negative_freq_error(self):
         """Test _apply_knutson_criterion with infeasible input."""
         criterion = [{'basin': 'NA', 'category': [0, 1],
-                      'year': 2100, 'change': 1.1,
+                      'year': 2100, 'change': -1.1,
                       'variable': 'frequency'},
                      {'basin': 'NA', 'category': [1],
                       'year': 2100, 'change': 3,

@@ -128,6 +128,7 @@ def get_knutson_criterion():
 
     return na + ep + wp + sp + ni + si
 
+
 def calc_scale_knutson(ref_year=2050, rcp_scenario=45):
     """
     Comparison 2081-2100 (i.e., late twenty-first century) and 2001-20
